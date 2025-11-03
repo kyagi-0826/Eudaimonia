@@ -52,6 +52,10 @@ interface Emits {
   blur: [event: FocusEvent]
 }
 
+interface Slots {
+  suffix?(): any
+}
+
 const props = withDefaults(defineProps<Props>(), {
   type: 'text',
   disabled: false,
@@ -61,6 +65,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+
+defineSlots<Slots>()
 
 const inputId = ref(`input-${Math.random().toString(36).substr(2, 9)}`)
 

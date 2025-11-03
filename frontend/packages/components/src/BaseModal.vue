@@ -1,40 +1,65 @@
 <template>
-  <Teleport to="body">
-    <Transition name="modal">
-      <div v-if="modelValue" class="modal-overlay" @click="handleOverlayClick">
-        <div
-          :class="modalClasses"
-          role="dialog"
-          aria-modal="true"
-          :aria-labelledby="titleId"
-          @click.stop
-        >
-          <header v-if="$slots.header || title" class="modal__header">
-            <slot name="header">
-              <h2 :id="titleId" class="modal__title">{{ title }}</h2>
-            </slot>
-            <button
-              v-if="closable"
-              class="modal__close"
-              type="button"
-              aria-label="閉じる"
-              @click="handleClose"
-            >
-              ✕
-            </button>
-          </header>
+  <!-- 固定位置でモーダル表示 -->
+  <Transition name="modal">
+    <div 
+      v-if="modelValue" 
+      class="modal-overlay" 
+      @click="handleOverlayClick" 
+      style="
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background-color: rgba(0, 0, 0, 0.5) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 9999 !important;
+        padding: 1rem !important;
+      "
+    >
+      <div
+        :class="modalClasses"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="titleId"
+        @click.stop
+        style="
+          background: white !important; 
+          border-radius: 8px !important;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+          display: flex !important;
+          flex-direction: column !important;
+          max-height: 90vh !important;
+          overflow: hidden !important;
+        "
+      >
+        <header v-if="$slots.header || title" class="modal__header">
+          <slot name="header">
+            <h2 :id="titleId" class="modal__title">{{ title }}</h2>
+          </slot>
+          <button
+            v-if="closable"
+            class="modal__close"
+            type="button"
+            aria-label="閉じる"
+            @click="handleClose"
+          >
+            ✕
+          </button>
+        </header>
 
-          <div class="modal__body">
-            <slot />
-          </div>
-
-          <footer v-if="$slots.footer" class="modal__footer">
-            <slot name="footer" />
-          </footer>
+        <div class="modal__body">
+          <slot />
         </div>
+
+        <footer v-if="$slots.footer" class="modal__footer">
+          <slot name="footer" />
+        </footer>
       </div>
-    </Transition>
-  </Teleport>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -62,6 +87,13 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+
+// Vue 3.3+のスロット型定義
+const slots = defineSlots<{
+  default(props: {}): any
+  header?(props: {}): any
+  footer?(props: {}): any
+}>()
 
 const titleId = ref(`modal-title-${Math.random().toString(36).substr(2, 9)}`)
 

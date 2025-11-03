@@ -160,6 +160,9 @@ import {
   BaseSpinner
 } from 'components'
 
+// 型安全なコンポーネント使用
+// 適切な型定義により、anyアサーションは不要
+
 // State
 const buttonLoading = ref(false)
 const textInput = ref('')

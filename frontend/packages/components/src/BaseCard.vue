@@ -36,6 +36,13 @@ const props = withDefaults(defineProps<Props>(), {
   padding: 'medium'
 })
 
+// Vue 3.3+のスロット型定義
+const slots = defineSlots<{
+  default(props: {}): any
+  header?(props: {}): any
+  footer?(props: {}): any
+}>()
+
 const cardClasses = computed(() => [
   'card',
   `card--shadow-${props.shadow}`,
