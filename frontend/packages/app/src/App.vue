@@ -13,6 +13,15 @@
           <li class="nav-item">
             <RouterLink to="/components" class="nav-link">コンポーネント</RouterLink>
           </li>
+          <li v-if="!authStore.isAuthenticated" class="nav-item">
+            <RouterLink to="/login" class="nav-link">ログイン</RouterLink>
+          </li>
+          <li v-if="authStore.isAuthenticated" class="nav-item">
+            <span class="nav-text">ようこそ、{{ authStore.displayName }}さん</span>
+          </li>
+          <li v-if="authStore.isAuthenticated" class="nav-item">
+            <button @click="handleLogout" class="nav-button">ログアウト</button>
+          </li>
         </ul>
       </div>
     </nav>
@@ -29,6 +38,19 @@
 
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
+import { useAuthStore } from './stores/auth'
+import { useRouter } from 'vue-router'
+
+const authStore = useAuthStore()
+const router = useRouter()
+
+// ログアウト処理
+const handleLogout = async () => {
+  const result = await authStore.logout()
+  if (result.success) {
+    router.push('/login')
+  }
+}
 </script>
 
 <style scoped>
@@ -83,6 +105,27 @@ import { RouterLink, RouterView } from 'vue-router'
 .nav-link:hover,
 .nav-link.router-link-active {
   background-color: #34495e;
+}
+
+.nav-text {
+  color: #bdc3c7;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+}
+
+.nav-button {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.3s;
+}
+
+.nav-button:hover {
+  background: #c0392b;
 }
 
 .main-content {

@@ -20,6 +20,7 @@ interface Props {
   loading?: boolean
   type?: 'button' | 'submit' | 'reset'
   outlined?: boolean
+  block?: boolean
 }
 
 interface Emits {
@@ -32,7 +33,8 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   loading: false,
   type: 'button',
-  outlined: false
+  outlined: false,
+  block: false
 })
 
 const emit = defineEmits<Emits>()
@@ -44,7 +46,8 @@ const buttonClasses = computed(() => [
   {
     'btn--outlined': props.outlined,
     'btn--loading': props.loading,
-    'btn--disabled': props.disabled
+    'btn--disabled': props.disabled,
+    'btn--block': props.block
   }
 ])
 
@@ -199,6 +202,12 @@ const handleClick = (event: MouseEvent) => {
 .btn--outlined.btn--warning:hover:not(.btn--disabled):not(.btn--loading) {
   background-color: #ffc107;
   color: #212529;
+}
+
+/* ブロック */
+.btn--block {
+  width: 100%;
+  display: flex;
 }
 
 /* 状態 */

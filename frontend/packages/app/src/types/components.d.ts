@@ -7,6 +7,8 @@ declare module 'components' {
     size?: 'small' | 'medium' | 'large'
     disabled?: boolean
     loading?: boolean
+    type?: 'button' | 'submit' | 'reset'
+    outlined?: boolean
     block?: boolean
   }
   

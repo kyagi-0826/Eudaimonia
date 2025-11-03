@@ -12,10 +12,11 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "vue": "^3.4.0",
-    "vue-router": "^4.2.0",
+    "@supabase/supabase-js": "^2.78.0",
+    "components": "file:../components",
     "pinia": "^2.1.0",
-    "components": "file:../components"
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -12,4 +12,10 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
+// 認証ストアを初期化
+import { useAuthStore } from './stores/auth'
+const authStore = useAuthStore()
+authStore.initializeAuthState()
+authStore.setupAuthStateListener()
+
 app.mount('#app')
