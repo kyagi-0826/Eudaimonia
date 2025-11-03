@@ -1,0 +1,29 @@
+{
+  "extends": [
+    "@vue/tsconfig/tsconfig.dom.json",
+    "../../tsconfig.json"
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "jsx": "preserve",
+    "jsxImportSource": "vue",
+    "paths": {
+      "@/*": ["src/*"],
+      "@components/*": ["../components/src/*"],
+      "@utils/*": ["../utils/src/*"],
+      "components": ["../components/dist/index.d.ts"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "src/**/*.vue",
+    "*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
