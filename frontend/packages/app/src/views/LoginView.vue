@@ -10,10 +10,9 @@
         <form @submit.prevent="handleLogin" class="login-form">
           <div class="form-group">
             <label class="form-label">ユーザーID</label>
-            <input
+            <BaseInput
               v-model="loginForm.userId"
               type="text"
-              class="form-input"
               :class="{ 'form-input--error': errors.userId }"
               placeholder="ユーザーIDを入力"
               required
@@ -23,10 +22,8 @@
 
           <div class="form-group">
             <label class="form-label">パスワード</label>
-            <input
+            <BasePassword
               v-model="loginForm.password"
-              type="password"
-              class="form-input"
               :class="{ 'form-input--error': errors.password }"
               placeholder="パスワードを入力"
               required
@@ -78,6 +75,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { BaseInput, BasePassword } from '@components'
 
 const router = useRouter()
 const authStore = useAuthStore()

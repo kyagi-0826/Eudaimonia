@@ -8,8 +8,7 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src'),
       '@components': resolve(__dirname, '../components/src'),
-      '@utils': resolve(__dirname, '../utils/src'),
-      'components': resolve(__dirname, '../components/dist/index.es.js')
+      '@utils': resolve(__dirname, '../utils/src')
     }
   },
   server: {

@@ -13,8 +13,7 @@
     "paths": {
       "@/*": ["src/*"],
       "@components/*": ["../components/src/*"],
-      "@utils/*": ["../utils/src/*"],
-      "components": ["../components/dist/index.d.ts"]
+      "@utils/*": ["../utils/src/*"]
     }
   },
   "include": [
