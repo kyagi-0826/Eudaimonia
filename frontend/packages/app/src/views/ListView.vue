@@ -47,21 +47,44 @@
       </div>
     </div>
 
-    <!-- アクティブフィルター表示 -->
-    <div v-if="activeFilters.size > 0" class="active-filters">
-      <div class="filter-header">
-        <span class="filter-title">🔍 アクティブなフィルター ({{ activeFilters.size }}件)</span>
-        <button class="btn-link" @click="clearAllFilters">すべて解除</button>
+    <!-- アクティブソート・フィルター表示 -->
+    <div v-if="activeSorts.length > 0 || activeFilters.size > 0" class="active-controls">
+      <!-- マルチソート状態 -->
+      <div v-if="activeSorts.length > 0" class="active-sort">
+        <div class="control-header">
+          <span class="control-title">📊 ソート中 ({{ activeSorts.length }}件)</span>
+          <button class="btn-link" @click="clearSort">すべて解除</button>
+        </div>
+        <div class="sort-info">
+          <div v-for="(sort, index) in activeSorts" :key="`${sort.key}-${sort.priority}`" class="sort-tag">
+            <span class="sort-priority">#{{ sort.priority }}</span>
+            <span class="sort-label">{{ getSortItemLabelByKey(sort.key) }}</span>
+            <span class="sort-direction">
+              {{ sort.direction === 'asc' ? '🔼 昇順' : '🔽 降順' }}
+            </span>
+            <button class="btn-remove" @click="removeSortByKey(sort.key)">
+              <span class="remove-icon">×</span>
+            </button>
+          </div>
+        </div>
       </div>
-      <div class="filter-tags">
-        <div 
-          v-for="[key, filter] in activeFilters" 
-          :key="key" 
-          class="filter-tag"
-        >
-          <span class="filter-label">{{ filter.item.label }}</span>
-          <span class="filter-value">{{ formatFilterValue(filter) }}</span>
-          <button class="filter-remove" @click="removeFilter(key)">×</button>
+
+      <!-- フィルター状態 -->
+      <div v-if="activeFilters.size > 0" class="active-filters">
+        <div class="control-header">
+          <span class="control-title">🔍 アクティブなフィルター ({{ activeFilters.size }}件)</span>
+          <button class="btn-link" @click="clearAllFilters">すべて解除</button>
+        </div>
+        <div class="filter-tags">
+          <div 
+            v-for="[key, filter] in activeFilters" 
+            :key="key" 
+            class="filter-tag"
+          >
+            <span class="filter-label">{{ filter.item.label }}</span>
+            <span class="filter-value">{{ formatFilterValue(filter) }}</span>
+            <button class="filter-remove" @click="removeFilter(key)">×</button>
+          </div>
         </div>
       </div>
     </div>
@@ -261,6 +284,13 @@ const editingUser = reactive({
 // テーブルデータ
 const tableData = ref<TableItem[]>([])
 const originalData = ref<TableItem[]>([]) // 元データ保持用
+
+// 初期データ設定
+const initializeData = () => {
+  const sampleData = generateMockData() // サンプルデータを生成
+  originalData.value = sampleData
+  tableData.value = [...sampleData]
+}
 
 // フィルター関連
 const showFilterDialog = ref(false)
@@ -510,34 +540,150 @@ const handleRowClick = (item: TableItem) => {
   showUserModal.value = true
 }
 
-// ソート機能
-const currentSortItem = ref<string | null>(null)
-const currentSortDirection = ref<'asc' | 'desc' | null>(null)
+// ソート関連
+const activeSorts = ref<Array<{
+  key: string
+  direction: 'asc' | 'desc'
+  label: string
+  priority: number
+}>>([])
+
+// 後方互換性のため（テンプレートで使用中）
+const currentSortItem = computed(() => activeSorts.value.length > 0 ? activeSorts.value[0].key : null)
+const currentSortDirection = computed(() => activeSorts.value.length > 0 ? activeSorts.value[0].direction : null)
 
 const handleSortChange = (column: any, direction: 'asc' | 'desc' | null, item?: any) => {
   console.log('Sort changed:', column, direction, item)
   
   if (!direction || !item) {
-    // ソート解除 - 元の順序に戻す
-    currentSortItem.value = null
-    currentSortDirection.value = null
-    tableData.value = [...originalData.value] // 元データに戻す
-    console.log('ソートを解除しました')
+    // ソート解除 - 該当項目のソートを削除
+    if (item) {
+      removeSortByKey(item.key)
+    } else {
+      // 全ソート解除
+      clearAllSorts()
+    }
     return
   }
   
-  // ソート実行
-  currentSortItem.value = item.key
-  currentSortDirection.value = direction
+  // マルチソート実行
+  addOrUpdateSort(item, direction)
+  console.log(`${item.label}を${direction === 'asc' ? '昇順' : '降順'}でソートに追加`)
+}
+
+const addOrUpdateSort = (item: any, direction: 'asc' | 'desc') => {
+  // 既存のソートがあるかチェック
+  const existingIndex = activeSorts.value.findIndex(sort => sort.key === item.key)
   
-  console.log(`${item.label}を${direction === 'asc' ? '昇順' : '降順'}でソートします`)
+  if (existingIndex >= 0) {
+    // 既存ソートの方向を更新
+    activeSorts.value[existingIndex].direction = direction
+  } else {
+    // 新しいソートを追加（優先順位は現在のソート数 + 1）
+    activeSorts.value.push({
+      key: item.key,
+      direction: direction,
+      label: item.label,
+      priority: activeSorts.value.length + 1
+    })
+  }
   
-  // 実際のデータソート
-  sortTableData(item, direction)
+  // マルチソート実行
+  executeMultiSort()
+}
+
+const removeSortByKey = (key: string) => {
+  activeSorts.value = activeSorts.value.filter(sort => sort.key !== key)
+  
+  // 優先順位を再調整
+  activeSorts.value.forEach((sort, index) => {
+    sort.priority = index + 1
+  })
+  
+  if (activeSorts.value.length > 0) {
+    executeMultiSort()
+  } else {
+    // 全てのソートが解除された場合は元データに戻す
+    applyFiltersOnly()
+  }
+}
+
+const clearAllSorts = () => {
+  activeSorts.value = []
+  applyFiltersOnly()
+}
+
+const executeMultiSort = () => {
+  let baseData = [...originalData.value]
+  
+  // アクティブなフィルターがある場合は先にフィルターを適用
+  if (activeFilters.value.size > 0) {
+    activeFilters.value.forEach((filter) => {
+      baseData = baseData.filter(row => {
+        const value = getNestedValue(row, filter.item.key)
+        return matchesFilter(value, filter)
+      })
+    })
+  }
+  
+  // マルチソート処理（優先順位順）
+  const sortedData = baseData.sort((a, b) => {
+    for (const sort of activeSorts.value) {
+      let valueA = getNestedValue(a, sort.key)
+      let valueB = getNestedValue(b, sort.key)
+      
+      // 数値の場合
+      if (typeof valueA === 'number' && typeof valueB === 'number') {
+        const result = sort.direction === 'asc' ? valueA - valueB : valueB - valueA
+        if (result !== 0) return result
+        continue
+      }
+      
+      // 文字列の場合
+      valueA = String(valueA || '').toLowerCase()
+      valueB = String(valueB || '').toLowerCase()
+      
+      const result = sort.direction === 'asc' 
+        ? valueA.localeCompare(valueB, 'ja')
+        : valueB.localeCompare(valueA, 'ja')
+        
+      if (result !== 0) return result
+    }
+    return 0
+  })
+  
+  tableData.value = sortedData
+}
+
+const applyFiltersOnly = () => {
+  let filtered = [...originalData.value]
+  
+  activeFilters.value.forEach((filter) => {
+    filtered = filtered.filter(row => {
+      const value = getNestedValue(row, filter.item.key)
+      return matchesFilter(value, filter)
+    })
+  })
+  
+  tableData.value = filtered
 }
 
 const sortTableData = (item: any, direction: 'asc' | 'desc') => {
-  const sortedData = [...tableData.value].sort((a, b) => {
+  // 元データまたは現在フィルター済みのデータベースを使用
+  let baseData = [...originalData.value]
+  
+  // アクティブなフィルターがある場合は先にフィルターを適用
+  if (activeFilters.value.size > 0) {
+    activeFilters.value.forEach((filter) => {
+      baseData = baseData.filter(row => {
+        const value = getNestedValue(row, filter.item.key)
+        return matchesFilter(value, filter)
+      })
+    })
+  }
+  
+  // ソート処理
+  const sortedData = baseData.sort((a, b) => {
     let valueA = getNestedValue(a, item.key)
     let valueB = getNestedValue(b, item.key)
     
@@ -640,6 +786,29 @@ const executeFilters = () => {
     })
   })
   
+  // フィルター後にソートも適用
+  if (currentSortItem.value && currentSortDirection.value) {
+    filtered = filtered.sort((a, b) => {
+      let valueA = getNestedValue(a, currentSortItem.value!)
+      let valueB = getNestedValue(b, currentSortItem.value!)
+      
+      // 数値の場合
+      if (typeof valueA === 'number' && typeof valueB === 'number') {
+        return currentSortDirection.value === 'asc' ? valueA - valueB : valueB - valueA
+      }
+      
+      // 文字列の場合
+      valueA = String(valueA || '').toLowerCase()
+      valueB = String(valueB || '').toLowerCase()
+      
+      if (currentSortDirection.value === 'asc') {
+        return valueA.localeCompare(valueB, 'ja')
+      } else {
+        return valueB.localeCompare(valueA, 'ja')
+      }
+    })
+  }
+  
   tableData.value = filtered
 }
 
@@ -676,11 +845,12 @@ const removeFilter = (filterKey: string) => {
 
 const clearAllFilters = () => {
   activeFilters.value.clear()
-  tableData.value = [...originalData.value]
   
-  // ソート状態リセット
-  currentSortItem.value = null
-  currentSortDirection.value = null
+  // ソート状態もリセット
+  activeSorts.value = []
+  
+  // 元データに戻す
+  tableData.value = [...originalData.value]
 }
 
 const closeFilterDialog = () => {
@@ -703,25 +873,50 @@ const formatFilterValue = (filter: any): string => {
   }
 }
 
+// ソート関連のヘルパー関数
+const getSortItemLabel = (): string => {
+  if (!currentSortItem.value) return ''
+  
+  // currentSortItemからラベルを取得
+  for (const column of tableColumns) {
+    for (const item of column.items || []) {
+      if (item.key === currentSortItem.value) {
+        return item.label
+      }
+    }
+  }
+  
+  return currentSortItem.value
+}
+
+const getSortItemLabelByKey = (key: string): string => {
+  // キーからラベルを取得
+  for (const column of tableColumns) {
+    for (const item of column.items || []) {
+      if (item.key === key) {
+        return item.label
+      }
+    }
+  }
+  
+  return key
+}
+
+const clearSort = () => {
+  activeSorts.value = []
+  applyFiltersOnly()
+}
+
 const handleExport = (format: string) => {
   console.log(`Exporting data as ${format}`)
   // 実際のエクスポート処理をここに実装
 }
 
-const refreshData = async () => {
-  loading.value = true
-  try {
-    // API呼び出しのシミュレート
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    const freshData = generateMockData()
-    originalData.value = [...freshData] // 元データ保存
-    tableData.value = freshData
-    
-    // ソート状態リセット
-    currentSortItem.value = null
-    currentSortDirection.value = null
-  } finally {
-    loading.value = false
+const refreshData = () => {
+  if (activeSorts.value.length === 0) {
+    applyFiltersOnly()
+  } else {
+    executeMultiSort()
   }
 }
 
@@ -806,6 +1001,7 @@ const bulkDelete = () => {
 // =============================================================================
 
 onMounted(() => {
+  initializeData()
   refreshData()
 })
 </script>
@@ -1169,6 +1365,141 @@ onMounted(() => {
   .modal-content {
     width: 95%;
     margin: 16px;
+  }
+}
+
+/* ソート・フィルター統合スタイル */
+.active-controls {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.active-sort {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.active-filters {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.control-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.control-title {
+  font-weight: 600;
+  color: #374151;
+}
+
+.sort-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sort-tag {
+  display: flex;
+  align-items: center;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  gap: 8px;
+  position: relative;
+}
+
+.sort-priority {
+  background: #1e3a8a;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sort-label {
+  font-weight: 500;
+  color: #1e3a8a;
+}
+
+.sort-direction {
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.btn-remove:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.remove-icon {
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.btn-remove:hover .remove-icon {
+  color: #ef4444;
+}
+
+/* 既存のフィルタースタイルの調整 */
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.filter-title {
+  font-weight: 600;
+  color: #374151;
+}
+
+@media (max-width: 640px) {
+  .active-controls {
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+  
+  .active-sort,
+  .active-filters {
+    padding: 12px;
+  }
+  
+  .sort-info,
+  .filter-tags {
+    flex-direction: column;
   }
 }
 
