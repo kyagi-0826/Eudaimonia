@@ -13,7 +13,11 @@
       "import": "./dist/index.es.js",
       "require": "./dist/index.cjs.js",
       "types": "./dist/index.d.ts"
-    }
+    },
+    "./src/*": "./src/*",
+    "./BaseTable/*": "./src/BaseTable/*",
+    "./BaseTable/components/*": "./src/BaseTable/components/*",
+    "./BaseTable/types": "./src/BaseTable/types/index.ts"
   },
   "files": [
     "dist"

@@ -13,6 +13,9 @@
           <li class="nav-item">
             <RouterLink to="/components" class="nav-link">コンポーネント</RouterLink>
           </li>
+          <li class="nav-item">
+            <RouterLink to="/listview" class="nav-link">リストビュー</RouterLink>
+          </li>
           <li v-if="!authStore.isAuthenticated" class="nav-item">
             <RouterLink to="/login" class="nav-link">ログイン</RouterLink>
           </li>

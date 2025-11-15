@@ -13,7 +13,9 @@
     "paths": {
       "@/*": ["src/*"],
       "@components/*": ["../components/src/*"],
-      "@utils/*": ["../utils/src/*"]
+      "@utils/*": ["../utils/src/*"],
+      "components": ["../components/src/index.ts"],
+      "components/*": ["../components/src/*"]
     }
   },
   "include": [

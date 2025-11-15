@@ -172,6 +172,7 @@
         />
       </slot>
     </div>
+    </template>
 
     <!-- 設定ダイアログ -->
     <Teleport to="body">
@@ -201,9 +202,13 @@ import type {
   TableColumn, 
   TableItem, 
   TableConfig,
-  TableSettings 
+  TableSettings,
+  TableEvents,
+  SortFilterConfig,
+  BaseTableProps
 } from '../types'
-import { useVirtualizer } from '../composables/useVirtualizer'
+// 一時的にコメントアウト（未実装のため）
+// import { useVirtualizer } from '../composables/useVirtualizer'
 import { useTableResponsive } from '../composables/useTableResponsive'
 import MultiItemCell from './MultiItemCell.vue'
 import TableStack from './TableStack.vue'

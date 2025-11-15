@@ -8,7 +8,7 @@
 // =============================================================================
 
 // メインコンポーネント
-export { default as BaseTable } from './components/BaseTable.vue'
+// export { default as BaseTable } from './components/BaseTable.vue' // 一時的にコメントアウト
 export { default as BaseTableResponsive } from './components/BaseTableResponsive.vue'
 
 // セル関連コンポーネント
@@ -43,3 +43,9 @@ export { useTableResponsive, BREAKPOINTS } from './composables/useTableResponsiv
 // =============================================================================
 
 export type * from './types'
+
+// 名前競合回避のための別名エクスポート
+export type { 
+  TableSettings as ITableSettings,
+  TableConfig as ITableConfig 
+} from './types'

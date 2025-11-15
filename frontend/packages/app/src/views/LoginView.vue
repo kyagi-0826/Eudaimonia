@@ -75,7 +75,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { BaseInput, BasePassword } from '@components'
+import BaseInput from '@components/BaseInput.vue'
+import BasePassword from '@components/BasePassword.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

@@ -8,8 +8,14 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src'),
       '@components': resolve(__dirname, '../components/src'),
-      '@utils': resolve(__dirname, '../utils/src')
+      '@utils': resolve(__dirname, '../utils/src'),
+      // components パッケージへの直接参照を追加
+      'components': resolve(__dirname, '../components/src')
     }
+  },
+  // モジュール解決の設定を追加
+  optimizeDeps: {
+    include: ['vue', 'vue-router', 'pinia']
   },
   server: {
     port: 3000,

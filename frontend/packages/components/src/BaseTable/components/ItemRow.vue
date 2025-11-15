@@ -384,26 +384,26 @@ const editorComponent = computed(() => {
 })
 
 const editorProps = computed(() => {
-  const props = {
+  const baseProps = {
     placeholder: props.item.placeholder || `${props.item.label}を入力...`
   }
 
   switch (props.item.type) {
     case 'boolean':
-      return { ...props, type: 'checkbox' }
+      return { ...baseProps, type: 'checkbox' }
     case 'date':
-      return { ...props, type: 'date' }
+      return { ...baseProps, type: 'date' }
     case 'email':
-      return { ...props, type: 'email' }
+      return { ...baseProps, type: 'email' }
     case 'url':
-      return { ...props, type: 'url' }
+      return { ...baseProps, type: 'url' }
     case 'phone':
-      return { ...props, type: 'tel' }
+      return { ...baseProps, type: 'tel' }
     case 'number':
-      return { ...props, type: 'number' }
+      return { ...baseProps, type: 'number' }
     case 'text':
     default:
-      return { ...props, type: 'text' }
+      return { ...baseProps, type: 'text' }
   }
 })
 

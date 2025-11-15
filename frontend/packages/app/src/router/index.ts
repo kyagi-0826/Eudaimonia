@@ -27,6 +27,14 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/listview',
+    name: 'ListView',
+    component: () => import('../views/ListView.vue'),
+    meta: {
+      title: 'リストビュー'
+    }
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('../views/LoginView.vue'),

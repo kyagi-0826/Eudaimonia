@@ -53,7 +53,7 @@
           :key="page"
           type="button"
           :class="getPageButtonClasses(page)"
-          @click="goToPage(page)"
+          @click="typeof page === 'number' ? goToPage(page) : undefined"
           :aria-label="`ページ ${page}`"
           :aria-current="page === currentPage ? 'page' : undefined"
           :disabled="page === '...'"
