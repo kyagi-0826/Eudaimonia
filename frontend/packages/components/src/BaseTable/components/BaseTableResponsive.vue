@@ -148,10 +148,26 @@
                   :style="getColumnStyle(column)"
                   @click="handleSort(column)"
                 >
-                  {{ column.label }}
-                  <span v-if="hasColumnSortable(column)" class="sort-indicator">
-                    {{ getSortIcon(column) }}
-                  </span>
+                  <!-- 仮: 複数項目名を表示 -->
+                  <div class="column-items">
+                    <div v-for="item in column.items" :key="item.key" class="item-header-simple">
+                      <span class="item-name">{{ item.label }}</span>
+                      <span 
+                        v-if="item.sortable" 
+                        class="sort-icon" 
+                        @click.stop="handleItemSort(column, item)"
+                        :title="`${item.label}でソート`"
+                      >
+                        {{ getSortIcon(column, item) }}
+                      </span>
+                      <span 
+                        v-if="item.filterable" 
+                        class="filter-icon"
+                        @click.stop="handleItemFilter(column, item)"
+                        :title="`${item.label}でフィルター`"
+                      >🔍</span>
+                    </div>
+                  </div>
                 </th>
               </tr>
             </thead>
@@ -223,8 +239,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useTableResponsive } from '../composables/useTableResponsive'
-import type { TableColumn, TableItem } from '../types'
+import type { TableColumn, TableItem, TableItemField, SortConfig } from '../types'
 import MultiItemCell from './MultiItemCell.vue'
+import MultiItemHeader from './MultiItemHeader.vue'
 import TableStack from './TableStack.vue'
 import TableCards from './TableCards.vue'
 
@@ -258,7 +275,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'row-click': [item: TableItem, index: number, event: MouseEvent]
   'selection-change': [selectedItems: TableItem[]]
-  'sort-change': [column: TableColumn, direction: 'asc' | 'desc' | null]
+  'sort-change': [column: TableColumn, direction: 'asc' | 'desc' | null, item?: any]
+  'filter-dialog-open': [column: TableColumn, item: any]
   'item-swipe': [item: TableItem, direction: 'left' | 'right']
 }>()
 
@@ -280,6 +298,45 @@ const {
 const viewMode = ref<'table' | 'cards'>('table')
 const sortColumn = ref<string | null>(null)
 const sortDirection = ref<'asc' | 'desc' | null>(null)
+
+// ソート設定状態
+const sortConfig = ref<SortConfig[]>([])
+
+// =============================================================================
+// 🎯 Event Handlers
+// =============================================================================
+
+const handleItemSort = (column: TableColumn, item: TableItemField) => {
+  // 現在のソート状態を確認
+  const existingSort = sortConfig.value.find(sort => sort.key === item.key)
+  
+  if (existingSort) {
+    // 既存のソートがある場合：昇順 → 降順 → 解除
+    if (existingSort.direction === 'asc') {
+      existingSort.direction = 'desc'
+    } else if (existingSort.direction === 'desc') {
+      // ソート解除
+      sortConfig.value = sortConfig.value.filter(sort => sort.key !== item.key)
+    }
+  } else {
+    // 新しいソートを追加（昇順から開始）
+    sortConfig.value.push({
+      key: item.key,
+      direction: 'asc',
+      label: item.label,
+      type: 'text' // 一時的に固定
+    })
+  }
+  
+  // イベントを親に通知
+  const currentSort = sortConfig.value.find(sort => sort.key === item.key)
+  emit('sort-change', column, currentSort?.direction || null, item)
+}
+
+const handleItemFilter = (column: TableColumn, item: TableItemField) => {
+  // フィルター設定ダイアログを開く
+  emit('filter-dialog-open', column, item)
+}
 
 // =============================================================================
 // 💻 Computed Properties
@@ -373,9 +430,13 @@ const getColumnStyle = (column: TableColumn) => {
   return style
 }
 
-const getSortIcon = (column: TableColumn): string => {
-  if (sortColumn.value !== column.id) return '↕️'
-  return sortDirection.value === 'asc' ? '↑' : '↓'
+const getSortIcon = (column: TableColumn, item: TableItemField): string => {
+  // 現在のソート状態を確認
+  const currentSort = sortConfig.value.find(sort => sort.key === item.key)
+  
+  if (!currentSort) return '📊' // 未ソート
+  
+  return currentSort.direction === 'asc' ? '🔼' : '🔽'
 }
 
 // =============================================================================
@@ -427,7 +488,7 @@ const handleSort = (column: TableColumn) => {
   sortColumn.value = newDirection ? column.id : null
   sortDirection.value = newDirection
   
-  emit('sort-change', column, newDirection)
+  emit('sort-change', column, newDirection, null)
 }
 
 const handleItemSwipe = (item: TableItem, direction: 'left' | 'right') => {
@@ -449,6 +510,34 @@ const setViewMode = (mode: 'table' | 'cards') => {
   flex-direction: column;
   height: 100%;
   background-color: #f8fafc;
+}
+
+/* Multi-item header styling */
+.column-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+}
+
+.item-header-simple {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.item-name {
+  font-weight: 500;
+  color: #374151;
+}
+
+.sort-icon, .filter-icon {
+  font-size: 0.75rem;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0.2rem;
+  border-radius: 0.25rem;
 }
 
 /* =============================================================================
@@ -571,12 +660,7 @@ const setViewMode = (mode: 'table' | 'cards') => {
 }
 
 .table-th.sortable {
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.table-th.sortable:hover {
-  background-color: #f1f5f9;
+  cursor: default;
 }
 
 .select-column {
@@ -762,10 +846,6 @@ const setViewMode = (mode: 'table' | 'cards') => {
   .table-th {
     color: #cbd5e1;
     border-color: #334155;
-  }
-  
-  .table-th.sortable:hover {
-    background-color: #334155;
   }
   
   .table-row {

@@ -47,6 +47,25 @@
       </div>
     </div>
 
+    <!-- アクティブフィルター表示 -->
+    <div v-if="activeFilters.size > 0" class="active-filters">
+      <div class="filter-header">
+        <span class="filter-title">🔍 アクティブなフィルター ({{ activeFilters.size }}件)</span>
+        <button class="btn-link" @click="clearAllFilters">すべて解除</button>
+      </div>
+      <div class="filter-tags">
+        <div 
+          v-for="[key, filter] in activeFilters" 
+          :key="key" 
+          class="filter-tag"
+        >
+          <span class="filter-label">{{ filter.item.label }}</span>
+          <span class="filter-value">{{ formatFilterValue(filter) }}</span>
+          <button class="filter-remove" @click="removeFilter(key)">×</button>
+        </div>
+      </div>
+    </div>
+
     <!-- テーブルコンテナ -->
         <!-- テーブル表示エリア -->
     <div class="table-container">
@@ -57,6 +76,8 @@
         :selectable="true"
         :loading="loading"
         @selection-change="handleSelectionChange"
+        @sort-change="handleSortChange"
+        @filter-dialog-open="handleFilterDialogOpen"
         @row-click="handleRowClick"
         class="user-table"
       />
@@ -147,6 +168,66 @@
         </div>
       </div>
     </div>
+
+    <!-- フィルターダイアログ -->
+    <div v-if="showFilterDialog" class="modal-overlay" @click="closeFilterDialog">
+      <div class="modal-content filter-dialog" @click.stop>
+        <div class="modal-header">
+          <h3>🔍 {{ filterItem?.label }} フィルター</h3>
+          <button class="modal-close" @click="closeFilterDialog">×</button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="applyFilter">
+            <!-- テキスト入力 (text/email/phone) -->
+            <div v-if="['text', 'email', 'phone'].includes(filterItem?.type)" class="form-group">
+              <label>検索文字列</label>
+              <input 
+                v-model="filterForm.text" 
+                type="text" 
+                :placeholder="`${filterItem?.label}を入力...`"
+                class="form-control"
+              />
+              <p class="form-help">部分一致で検索されます</p>
+            </div>
+
+            <!-- 日付範囲 (date) -->
+            <div v-if="filterItem?.type === 'date'" class="form-group">
+              <label>期間指定</label>
+              <div class="date-range">
+                <div class="date-input">
+                  <label>開始日</label>
+                  <input v-model="filterForm.dateFrom" type="date" class="form-control" />
+                </div>
+                <div class="date-input">
+                  <label>終了日</label>
+                  <input v-model="filterForm.dateTo" type="date" class="form-control" />
+                </div>
+              </div>
+            </div>
+
+            <!-- セレクト選択 (select) -->
+            <div v-if="filterItem?.type === 'select'" class="form-group">
+              <label>選択肢</label>
+              <select v-model="filterForm.text" class="form-control">
+                <option value="">すべて</option>
+                <option v-for="option in filterForm.options" :key="option" :value="option">
+                  {{ option }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" @click="closeFilterDialog">
+                キャンセル
+              </button>
+              <button type="submit" class="btn btn-primary">
+                フィルター適用
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -179,6 +260,22 @@ const editingUser = reactive({
 
 // テーブルデータ
 const tableData = ref<TableItem[]>([])
+const originalData = ref<TableItem[]>([]) // 元データ保持用
+
+// フィルター関連
+const showFilterDialog = ref(false)
+const filterColumn = ref<any>(null)
+const filterItem = ref<any>(null)
+const activeFilters = ref<Map<string, any>>(new Map())
+const filteredData = ref<TableItem[]>([])
+
+// フィルターフォーム
+const filterForm = reactive({
+  text: '',
+  dateFrom: '',
+  dateTo: '',
+  options: [] as string[]
+})
 
 // =============================================================================
 // 📋 Table Configuration
@@ -197,7 +294,9 @@ const tableColumns: TableColumn[] = [
         label: 'アバター',
         type: 'image',
         priority: 'high',
-        required: true
+        required: true,
+        sortable: false,
+        filterable: false
       },
       {
         key: 'name',
@@ -205,14 +304,16 @@ const tableColumns: TableColumn[] = [
         type: 'text',
         priority: 'high',
         required: true,
-        sortable: true
+        sortable: true,
+        filterable: true
       },
       {
         key: 'email',
         label: 'メール',
         type: 'email',
         priority: 'medium',
-        sortable: true
+        sortable: true,
+        filterable: true
       }
     ]
   },
@@ -228,7 +329,8 @@ const tableColumns: TableColumn[] = [
         label: '部署',
         type: 'text',
         priority: 'high',
-        sortable: true
+        sortable: true,
+        filterable: true
       },
       {
         key: 'role',
@@ -236,6 +338,7 @@ const tableColumns: TableColumn[] = [
         type: 'text',
         priority: 'medium',
         sortable: true,
+        filterable: true,
         formatter: (value: string) => {
           const roleMap: Record<string, string> = {
             admin: '管理者',
@@ -260,13 +363,17 @@ const tableColumns: TableColumn[] = [
         key: 'phone',
         label: '電話',
         type: 'phone',
-        priority: 'low'
+        priority: 'low',
+        sortable: true,
+        filterable: true
       },
       {
         key: 'extension',
         label: '内線',
         type: 'text',
-        priority: 'low'
+        priority: 'low',
+        sortable: true,
+        filterable: true
       }
     ]
   },
@@ -284,6 +391,7 @@ const tableColumns: TableColumn[] = [
         type: 'text',
         priority: 'medium',
         sortable: true,
+        filterable: true,
         formatter: (value: string) => {
           const statusMap: Record<string, string> = {
             active: 'アクティブ',
@@ -299,7 +407,8 @@ const tableColumns: TableColumn[] = [
         label: '最終ログイン',
         type: 'date',
         priority: 'low',
-        sortable: true
+        sortable: true,
+        filterable: true
       }
     ]
   },
@@ -317,6 +426,7 @@ const tableColumns: TableColumn[] = [
         type: 'number',
         priority: 'low',
         sortable: true,
+        filterable: true,
         formatter: (value: number) => `${value}回`
       },
       {
@@ -325,6 +435,7 @@ const tableColumns: TableColumn[] = [
         type: 'number',
         priority: 'low',
         sortable: true,
+        filterable: true,
         formatter: (value: number) => `${value}/100`
       }
     ]
@@ -399,6 +510,199 @@ const handleRowClick = (item: TableItem) => {
   showUserModal.value = true
 }
 
+// ソート機能
+const currentSortItem = ref<string | null>(null)
+const currentSortDirection = ref<'asc' | 'desc' | null>(null)
+
+const handleSortChange = (column: any, direction: 'asc' | 'desc' | null, item?: any) => {
+  console.log('Sort changed:', column, direction, item)
+  
+  if (!direction || !item) {
+    // ソート解除 - 元の順序に戻す
+    currentSortItem.value = null
+    currentSortDirection.value = null
+    tableData.value = [...originalData.value] // 元データに戻す
+    console.log('ソートを解除しました')
+    return
+  }
+  
+  // ソート実行
+  currentSortItem.value = item.key
+  currentSortDirection.value = direction
+  
+  console.log(`${item.label}を${direction === 'asc' ? '昇順' : '降順'}でソートします`)
+  
+  // 実際のデータソート
+  sortTableData(item, direction)
+}
+
+const sortTableData = (item: any, direction: 'asc' | 'desc') => {
+  const sortedData = [...tableData.value].sort((a, b) => {
+    let valueA = getNestedValue(a, item.key)
+    let valueB = getNestedValue(b, item.key)
+    
+    // 数値の場合
+    if (typeof valueA === 'number' && typeof valueB === 'number') {
+      return direction === 'asc' ? valueA - valueB : valueB - valueA
+    }
+    
+    // 文字列の場合
+    valueA = String(valueA || '').toLowerCase()
+    valueB = String(valueB || '').toLowerCase()
+    
+    if (direction === 'asc') {
+      return valueA.localeCompare(valueB, 'ja')
+    } else {
+      return valueB.localeCompare(valueA, 'ja')
+    }
+  })
+  
+  tableData.value = sortedData
+}
+
+// ネストしたオブジェクトの値を取得
+const getNestedValue = (obj: any, path: string) => {
+  return path.split('.').reduce((current, key) => current?.[key], obj)
+}
+
+// フィルター機能
+const handleFilterDialogOpen = (column: any, item: any) => {
+  filterColumn.value = column
+  filterItem.value = item
+  
+  // フォームをリセット
+  filterForm.text = ''
+  filterForm.dateFrom = ''
+  filterForm.dateTo = ''
+  filterForm.options = []
+  
+  // データ型に応じたフォーム初期化
+  if (item.type === 'select') {
+    // セレクト項目の選択肢を設定
+    filterForm.options = getSelectOptions(item)
+  }
+  
+  showFilterDialog.value = true
+  console.log(`フィルターダイアログを開きます: ${item.label} (${item.type})`)
+}
+
+const getSelectOptions = (item: any) => {
+  // 実際のデータから選択肢を抽出
+  const values = new Set<string>()
+  originalData.value.forEach(row => {
+    const value = getNestedValue(row, item.key)
+    if (value) values.add(String(value))
+  })
+  return Array.from(values).sort()
+}
+
+const applyFilter = () => {
+  if (!filterItem.value) return
+  
+  const filterKey = `${filterColumn.value.id}.${filterItem.value.key}`
+  const filterConfig = {
+    column: filterColumn.value,
+    item: filterItem.value,
+    value: getFilterValue(),
+    type: filterItem.value.type
+  }
+  
+  activeFilters.value.set(filterKey, filterConfig)
+  executeFilters()
+  showFilterDialog.value = false
+}
+
+const getFilterValue = () => {
+  switch (filterItem.value.type) {
+    case 'text':
+    case 'email':
+    case 'phone':
+      return filterForm.text
+    case 'date':
+      return {
+        from: filterForm.dateFrom,
+        to: filterForm.dateTo
+      }
+    case 'select':
+      return filterForm.text
+    default:
+      return filterForm.text
+  }
+}
+
+const executeFilters = () => {
+  let filtered = [...originalData.value]
+  
+  activeFilters.value.forEach((filter) => {
+    filtered = filtered.filter(row => {
+      const value = getNestedValue(row, filter.item.key)
+      return matchesFilter(value, filter)
+    })
+  })
+  
+  tableData.value = filtered
+}
+
+const matchesFilter = (value: any, filter: any): boolean => {
+  if (!value || !filter.value) return false
+  
+  const strValue = String(value).toLowerCase()
+  
+  switch (filter.type) {
+    case 'text':
+    case 'email':
+    case 'phone':
+      return strValue.includes(String(filter.value).toLowerCase())
+    case 'select':
+      return strValue === String(filter.value).toLowerCase()
+    case 'date':
+      // 日付範囲フィルター
+      const dateValue = new Date(value)
+      const from = filter.value.from ? new Date(filter.value.from) : null
+      const to = filter.value.to ? new Date(filter.value.to) : null
+      
+      if (from && dateValue < from) return false
+      if (to && dateValue > to) return false
+      return true
+    default:
+      return true
+  }
+}
+
+const removeFilter = (filterKey: string) => {
+  activeFilters.value.delete(filterKey)
+  executeFilters()
+}
+
+const clearAllFilters = () => {
+  activeFilters.value.clear()
+  tableData.value = [...originalData.value]
+  
+  // ソート状態リセット
+  currentSortItem.value = null
+  currentSortDirection.value = null
+}
+
+const closeFilterDialog = () => {
+  showFilterDialog.value = false
+}
+
+const formatFilterValue = (filter: any): string => {
+  switch (filter.type) {
+    case 'date':
+      if (filter.value.from && filter.value.to) {
+        return `${filter.value.from} - ${filter.value.to}`
+      } else if (filter.value.from) {
+        return `${filter.value.from} 以降`
+      } else if (filter.value.to) {
+        return `${filter.value.to} 以前`
+      }
+      return '範囲指定'
+    default:
+      return String(filter.value)
+  }
+}
+
 const handleExport = (format: string) => {
   console.log(`Exporting data as ${format}`)
   // 実際のエクスポート処理をここに実装
@@ -409,7 +713,13 @@ const refreshData = async () => {
   try {
     // API呼び出しのシミュレート
     await new Promise(resolve => setTimeout(resolve, 1000))
-    tableData.value = generateMockData()
+    const freshData = generateMockData()
+    originalData.value = [...freshData] // 元データ保存
+    tableData.value = freshData
+    
+    // ソート状態リセット
+    currentSortItem.value = null
+    currentSortDirection.value = null
   } finally {
     loading.value = false
   }
@@ -859,6 +1169,126 @@ onMounted(() => {
   .modal-content {
     width: 95%;
     margin: 16px;
+  }
+}
+
+/* フィルター関連スタイル */
+.filter-dialog {
+  max-width: 500px;
+}
+
+.date-range {
+  display: flex;
+  gap: 16px;
+}
+
+.date-input {
+  flex: 1;
+}
+
+.date-input label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.form-help {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.active-filters {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.filter-title {
+  font-weight: 600;
+  color: #374151;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.btn-link:hover {
+  color: #1d4ed8;
+}
+
+.filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-tag {
+  display: flex;
+  align-items: center;
+  background: #e0e7ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  gap: 8px;
+}
+
+.filter-label {
+  font-weight: 500;
+  color: #3730a3;
+}
+
+.filter-value {
+  color: #1e1b4b;
+}
+
+.filter-remove {
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.filter-remove:hover {
+  background: #c7d2fe;
+}
+
+@media (max-width: 640px) {
+  .filter-dialog {
+    max-width: 95%;
+  }
+  
+  .date-range {
+    flex-direction: column;
+  }
+  
+  .filter-tags {
+    flex-direction: column;
   }
 }
 </style>

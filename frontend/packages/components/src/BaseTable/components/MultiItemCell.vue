@@ -27,10 +27,13 @@
           :primary="true"
           :editable="editable && primaryItem.editable"
           :compact="false"
+          :show-label="false"
           @edit-start="handleEditStart"
           @edit-save="handleEditSave"
           @edit-cancel="handleEditCancel"
           @value-click="handleValueClick"
+          @sort-click="handleSortClick"
+          @filter-click="handleFilterClick"
         />
       </div>
 
@@ -49,10 +52,13 @@
           :primary="false"
           :editable="editable && item.editable"
           :compact="compact"
+          :show-label="false"
           @edit-start="handleEditStart"
           @edit-save="handleEditSave"
           @edit-cancel="handleEditCancel"
           @value-click="handleValueClick"
+          @sort-click="handleSortClick"
+          @filter-click="handleFilterClick"
         />
       </div>
 
@@ -71,10 +77,13 @@
           :primary="false"
           :editable="editable && item.editable"
           :compact="true"
+          :show-label="false"
           @edit-start="handleEditStart"
           @edit-save="handleEditSave"
           @edit-cancel="handleEditCancel"
           @value-click="handleValueClick"
+          @sort-click="handleSortClick"
+          @filter-click="handleFilterClick"
         />
       </div>
 
@@ -180,6 +189,8 @@ const emit = defineEmits<{
   'value-click': [item: TableItemField, data: TableItem]
   'action-click': [action: string, data: TableItem]
   'expand-toggle': [expanded: boolean, data: TableItem]
+  'sort-click': [item: TableItemField, data: TableItem]
+  'filter-click': [item: TableItemField, data: TableItem]
 }>()
 
 // =============================================================================
@@ -354,6 +365,14 @@ const handleActionClick = (action: any) => {
   action.handler(props.data)
   emit('action-click', action.key, props.data)
   showActionsMenu.value = false
+}
+
+const handleSortClick = (item: TableItemField) => {
+  emit('sort-click', item, props.data)
+}
+
+const handleFilterClick = (item: TableItemField) => {
+  emit('filter-click', item, props.data)
 }
 
 // Close actions menu when clicking outside
